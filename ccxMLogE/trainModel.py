@@ -50,7 +50,7 @@ def f_xgboost(modelmain, modeltype, modelCode):
         # 稳定
         # 需封装一个递归的函数 用于跑模型
         train_path, test_path, index_name, target_name = modelmain.train_path, modelmain.test_path, modelmain.index_name, modelmain.target_name
-        return f_recursionModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
+        return f_recursionboostModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
 
 
 def f_gbm(modelmain, modeltype, modelCode):
@@ -74,7 +74,7 @@ def f_gbm(modelmain, modeltype, modelCode):
         # 稳定
         # 需封装一个递归的函数 用于跑模型
         train_path, test_path, index_name, target_name = modelmain.train_path, modelmain.test_path, modelmain.index_name, modelmain.target_name
-        return f_recursionModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
+        return f_recursiongbmModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
 
 
 def f_rf(modelmain, modeltype, modelCode):
@@ -91,7 +91,7 @@ def f_rf(modelmain, modeltype, modelCode):
         # 稳定
         # 需封装一个递归的函数 用于跑模型
         train_path, test_path, index_name, target_name = modelmain.train_path, modelmain.test_path, modelmain.index_name, modelmain.target_name
-        return f_recursionModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
+        return f_recursionrfModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
 
 
 def f_trainModelMain(train_path, test_path, index_name, target_name, userPath, modeltype, arithmetic):
@@ -126,7 +126,7 @@ def f_trainModelMain(train_path, test_path, index_name, target_name, userPath, m
 # 2.Auc train_auc - test_auc < 0.015 即可停止 （需考虑 如果变量太少，一致达不到这个要求怎么办）
 
 
-def f_recursionModel(train_path, test_path, index_name, target_name, modelconf, i):
+def f_recursionboostModel(train_path, test_path, index_name, target_name, modelconf, i):
     '''
     递归的将上一轮的重要变量重新作为输入 从而达到筛选变量的作用
     :param train_path: 训练集
@@ -140,13 +140,7 @@ def f_recursionModel(train_path, test_path, index_name, target_name, modelconf, 
     train_path = ModelUtil.load_data(train_path)
     test_path = ModelUtil.load_data(test_path)
     initmodelmain = ModelMain(train_path, test_path, index_name, target_name)
-    try:
-        initpathlist = initmodelmain.ccxboost_main(modelconf)  # 依据返回的pathlist 进行进一步的计算
-    except:
-        try:
-            initpathlist = initmodelmain.ccxgbm_main(modelconf)
-        except:
-            initpathlist = initmodelmain.ccxrf_main(modelconf)
+    initpathlist = initmodelmain.ccxboost_main(modelconf)
 
     # 1.计算出重要变量的个数
     implen, impvar = f_getImplen(initpathlist[2])
@@ -154,7 +148,7 @@ def f_recursionModel(train_path, test_path, index_name, target_name, modelconf, 
     train_auc, train_ks = f_getAucKs(initpathlist[3])
     test_auc, test_ks = f_getAucKs(initpathlist[4])
     # 3.判断出模型重要变量占总变量的百分比情况
-    imppct = f_getVarpct(initpathlist[1], implen)  # 入模变量 == 重要变量
+    imppct = f_getVarpctboost(initpathlist[1], implen)  # 入模变量 == 重要变量
     flag = f_flag(train_auc, train_ks, test_auc, test_ks, imppct)
     i = i + 1
     if i < 5:
@@ -166,7 +160,95 @@ def f_recursionModel(train_path, test_path, index_name, target_name, modelconf, 
             test_path = ModelUtil.load_data(test_path)[newselectcol]
             print('##' * 20, i, '##' * 20)
             # 后续优化 递归的同时修改配置文件modelconf
-            f_recursionModel(train_path, test_path, index_name, target_name, modelconf, i)
+            return f_recursionboostModel(train_path, test_path, index_name, target_name, modelconf, i)
+
+        else:
+            print('满足条件结束递归 ' * 10)
+            return initpathlist
+    else:
+        print('递归次数达到要求结束递归' * 10)
+        return initpathlist
+
+
+def f_recursiongbmModel(train_path, test_path, index_name, target_name, modelconf, i):
+    '''
+    递归的将上一轮的重要变量重新作为输入 从而达到筛选变量的作用
+    :param train_path: 训练集
+    :param test_path: 测试集
+    :param index_name:
+    :param target_name:
+    :param modelconf: 模型配置文件路径
+    :param i: 记录递归的次数
+    :return: 最终递归完成的模型输出 结果的路径列表
+    '''
+    train_path = ModelUtil.load_data(train_path)
+    test_path = ModelUtil.load_data(test_path)
+    initmodelmain = ModelMain(train_path, test_path, index_name, target_name)
+    initpathlist = initmodelmain.ccxgbm_main(modelconf)
+
+    # 1.计算出重要变量的个数
+    implen, impvar = f_getImplen(initpathlist[2])
+    # 2.计算出模型的AUC和KS
+    train_auc, train_ks = f_getAucKs(initpathlist[3])
+    test_auc, test_ks = f_getAucKs(initpathlist[4])
+    # 3.判断出模型重要变量占总变量的百分比情况
+    imppct = f_getVarpctgbm(initpathlist[1], implen)  # 入模变量 == 重要变量
+    flag = f_flag(train_auc, train_ks, test_auc, test_ks, imppct)
+    i = i + 1
+    if i < 5:
+        if flag:
+            print('递归调用 ' * 20)
+            newselectcol = impvar + [index_name, target_name]
+            print('---入选模型的变量个数%s' % len(newselectcol))
+            train_path = ModelUtil.load_data(train_path)[newselectcol]
+            test_path = ModelUtil.load_data(test_path)[newselectcol]
+            print('##' * 20, i, '##' * 20)
+            # 后续优化 递归的同时修改配置文件modelconf
+            return f_recursiongbmModel(train_path, test_path, index_name, target_name, modelconf, i)
+
+        else:
+            print('满足条件结束递归 ' * 10)
+            return initpathlist
+    else:
+        print('递归次数达到要求结束递归' * 10)
+        return initpathlist
+
+
+def f_recursionrfModel(train_path, test_path, index_name, target_name, modelconf, i):
+    '''
+    递归的将上一轮的重要变量重新作为输入 从而达到筛选变量的作用
+    :param train_path: 训练集
+    :param test_path: 测试集
+    :param index_name:
+    :param target_name:
+    :param modelconf: 模型配置文件路径
+    :param i: 记录递归的次数
+    :return: 最终递归完成的模型输出 结果的路径列表
+    '''
+    train_path = ModelUtil.load_data(train_path)
+    test_path = ModelUtil.load_data(test_path)
+    initmodelmain = ModelMain(train_path, test_path, index_name, target_name)
+    initpathlist = initmodelmain.ccxrf_main(modelconf)
+
+    # 1.计算出重要变量的个数
+    implen, impvar = f_getImplen(initpathlist[2])
+    # 2.计算出模型的AUC和KS
+    train_auc, train_ks = f_getAucKs(initpathlist[3])
+    test_auc, test_ks = f_getAucKs(initpathlist[4])
+    # 3.判断出模型重要变量占总变量的百分比情况
+    imppct = f_getVarpctrf(initpathlist[1], implen)  # 入模变量 == 重要变量
+    flag = f_flag(train_auc, train_ks, test_auc, test_ks, imppct)
+    i = i + 1
+    if i < 5:
+        if flag:
+            print('递归调用 ' * 20)
+            newselectcol = impvar + [index_name, target_name]
+            print('---入选模型的变量个数%s' % len(newselectcol))
+            train_path = ModelUtil.load_data(train_path)[newselectcol]
+            test_path = ModelUtil.load_data(test_path)[newselectcol]
+            print('##' * 20, i, '##' * 20)
+            # 后续优化 递归的同时修改配置文件modelconf
+            return f_recursionrfModel(train_path, test_path, index_name, target_name, modelconf, i)
 
         else:
             print('满足条件结束递归 ' * 10)
@@ -218,7 +300,7 @@ def f_getAucKs(pretrpath):
     return Auc, ks
 
 
-def f_getVarpct(model_path, implen):
+def f_getVarpctboost(model_path, implen):
     '''
     依据模型路径 给出需要输入模型的变量个数
     :param model_path: 模型路径
@@ -231,12 +313,41 @@ def f_getVarpct(model_path, implen):
         x = x.feature_names
         modellen = len(x)
     except:
-        try:
-            # 随机森林的获取方法
-            modellen = x.n_features_
-        except:
-            # gbm 获取入模变量的方法
-            modellen = len(x.feature_name())
+        modellen = np.nan
+
+    return implen == modellen
+
+
+def f_getVarpctgbm(model_path, implen):
+    '''
+    依据模型路径 给出需要输入模型的变量个数
+    :param model_path: 模型路径
+    :param implen: 重要变量长度
+    :return:
+    '''
+    x = ModelUtil.load_bstmodel(model_path)
+    try:
+        # gbm 获取入模变量的方法
+        modellen = len(x.feature_name())
+    except:
+        modellen = np.nan
+
+    return implen == modellen
+
+
+def f_getVarpctrf(model_path, implen):
+    '''
+    依据模型路径 给出需要输入模型的变量个数
+    :param model_path: 模型路径
+    :param implen: 重要变量长度
+    :return:
+    '''
+    x = ModelUtil.load_bstmodel(model_path)
+    try:
+        # 随机森林的获取方法
+        modellen = x.n_features_
+    except:
+        modellen = np.nan
 
     return implen == modellen
 

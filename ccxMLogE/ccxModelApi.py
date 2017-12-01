@@ -10,10 +10,11 @@ import time
 import json
 from ccxMLogE.config import f_mdAllconf
 from ccxMLogE.inputTransform import f_getCateList, f_readData
-from ccxMLogE.outputTransform import f_part2Output, f_type1Output, f_type2Output
+from ccxMLogE.outputTransform import f_part2Output, f_type1Output, f_type2Output, f_part2Output4yibu
 from ccxMLogE.preparationData import f_dummyOld, f_splitdata
 from ccxMLogE.trainModel import f_trainModelMain
-from ccxMLogE.varDescSummary import f_mainDesc, f_viewdata
+from ccxMLogE.varDescSummary import f_mainDesc, f_viewdata, f_VarTypeClassfiy
+import os
 
 server = flask.Flask(__name__)
 
@@ -64,8 +65,9 @@ def ccxModelApi():
 
 def f_threadModelTrain(rawdata, base, cateList, reqId, datasetInfo, userPath):
     print('变量统计加模型返回')
+    # dummyList = f_VarTypeClassfiy(rawdata, cateList)
     resdesc = f_mainDesc(rawdata, base['indexName'], base['targetName'], cateList)
-    descout, path3 = f_part2Output(resdesc, userPath, rawdata)  # path3 即为所有变量的IV值计算
+    descout, path3 = f_part2Output4yibu(resdesc, userPath)  # path3 即为所有变量的IV值计算
     # res = f_type1Output(reqId, datasetInfo, descout, path3)
     print('开始跑模型 ' * 20)
     # 模型数据的准备
@@ -80,13 +82,13 @@ def f_threadModelTrain(rawdata, base, cateList, reqId, datasetInfo, userPath):
                                   modeltype,
                                   base['arithmetic'])
     # 模型输出结果
-    res = f_type2Output(reqId, datasetInfo, descout, path3, repathlist, train_path, test_path,
+    res = f_type2Output(reqId, datasetInfo, descout, path3, repathlist, rawdata.columns, train_path, test_path,
                         base['targetName'], userPath, resdesc)
 
     # 回调输出接口
     header_dict = {"Content-Type": "application/json"}
-    url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
-    # url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上环境请求接口
+    # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
+    url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上环境请求接口
     res_ = res.encode('utf-8')
     r = requests.post(url, data=res_, headers=header_dict)
     # print('用时' * 20, (time.time() - st()))

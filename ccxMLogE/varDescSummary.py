@@ -664,17 +664,20 @@ def f_mdmultiDict(dd, dropcol):
     :param dropcol:
     :return: Dataframe
     '''
-    dd = dd.copy()
-    for i in dropcol:
-        try:
-            del dd[i]
-        except:
-            pass
-    for j in dd.keys():
-        dd[j] = [json.dumps(dd[j], ensure_ascii=False)]
-    re = pd.DataFrame(dd).T.reset_index()
-    re.columns = ['变量名', '分类字典']
-    return re
+    if dd:  # dd=={} 的情况 会报错
+        dd = dd.copy()
+        for i in dropcol:
+            try:
+                del dd[i]
+            except:
+                pass
+        for j in dd.keys():
+            dd[j] = [json.dumps(dd[j], ensure_ascii=False)]
+        re = pd.DataFrame(dd).T.reset_index()
+        re.columns = ['变量名', '分类字典']
+        return re
+    else:
+        return pd.DataFrame({'变量名': ['无'], '分类字典': ["无"]})
 
 
 def f_VardescWriter(path, res):

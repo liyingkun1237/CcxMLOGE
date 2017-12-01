@@ -121,6 +121,7 @@ def f_part2Output(resdesc, userPath, df):
     cateVar = cateVardesc.to_dict(orient='records')
 
     # 第二部分这里的是返回html文件路径
+    # 发现 同步异步都要计算这个的话 会很麻烦
     path_ = f_detailVarhtml(df, userPath)
 
     # 这是第三部分的事情了
@@ -131,6 +132,41 @@ def f_part2Output(resdesc, userPath, df):
         path = None
 
     return {"varSummary": {"cateVar": cateVar, "numVar": numVar}, "detailVarPath": {"path": path_}}, path
+
+
+def f_part2Output4yibu(resdesc, userPath):
+    '''
+    数据集的描述性分析结果 为了异步服务 异步时 不会计算html 页面
+    :param resdesc: 元组 numVardesc, cateVardesc, detailVarIV, dd, one_hot, cate_2, dropcol
+    :param userPath 用户路径
+    :return:
+    '''
+    # numVardesc, cateVardesc 转字典
+    # detailVarIV 写入csv中，返回路径
+    if resdesc:  # 过滤None
+        numVardesc = resdesc[0]
+        cateVardesc = resdesc[1]
+        detailVarIV = resdesc[2]
+    else:
+        numVardesc = {}
+        cateVardesc = {}
+        detailVarIV = pd.DataFrame()
+
+    numVar = numVardesc.to_dict(orient='records')
+    cateVar = cateVardesc.to_dict(orient='records')
+
+    # 第二部分这里的是返回html文件路径
+    # 发现 同步异步都要计算这个的话 会很麻烦 异步将不会计算了
+    # path_ = f_detailVarhtml(df, userPath)
+
+    # 这是第三部分的事情了
+    path = os.path.join(userPath, 'detailVarIV.csv')
+    if len(detailVarIV) > 1:
+        detailVarIV.to_csv(path, index=False)
+    else:
+        path = None
+
+    return {"varSummary": {"cateVar": cateVar, "numVar": numVar}, "detailVarPath": {"path": None}}, path
 
 
 def f_type1Output(reqId, datasetInfo, descout, path):
@@ -195,7 +231,7 @@ def f_getRawcolnames(impVarcol, dfcolnames):
     for i in dfcolnames:
         # 拿到原始的字段名
         for j, rank in zip(impVarcol, np.arange(len(impVarcol)) + 1):
-            if i in j:
+            if str(i) in str(j):
                 ls.append(i)
                 rankls.append(rank)
                 break
@@ -204,7 +240,7 @@ def f_getRawcolnames(impVarcol, dfcolnames):
 
 
 # 测一下topN
-# imppath = r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\ccxboost\model20171130111523\modeldata\d_2017-11-30_importance_var.csv'
+# imppath = r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\ccxboost\model20171201200539\modeldata\d_2017-12-01_importance_var.csv'
 # topNpath = r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\detailVarIV.csv'
 # dfcolnames = pd.read_csv(r'C:\\Users\\liyin\\Desktop\\20170620_tn\\0620_base\\train_base14.csv').columns
 #
@@ -442,7 +478,9 @@ def f_pvalueReport(tepred):
     mhbins[-1] = f_zcPvalue(max(rawbins) + 3.5)  # 加3.5的原因为 让71这种能corver到做大值
     bestbins = pd.Series(mhbins).unique().tolist()
     print('===调整后的分箱=====', bestbins)
-    tepred['scoreBins'] = pd.cut(x, bestbins, right=False)
+    # 1201 开发一个方法 加上百分号
+    bestbinslabel = f_addbfh(bestbins)
+    tepred['scoreBins'] = pd.cut(x, bestbins, labels=bestbinslabel, right=False)
     iv = IV(pd.cut(x, bestbins, right=False), y)
     iv['bins'] = iv['bins'].apply(str)
     model_pvalue = tepred.groupby('scoreBins')['P_value'].mean().tolist()
@@ -450,6 +488,19 @@ def f_pvalueReport(tepred):
     iv['model_pvalue'] = model_pvalue
     # print(tepred.head(100))
     return iv
+
+
+def f_addbfh(bins):
+    ls = []
+    for idx in range(len(bins) - 1):
+        _, __ = str(bins[idx]), str(bins[idx + 1])
+        ls.append('[' + _ + '% , ' + __ + '%)')
+    return ls
+
+
+# 测试一下
+# bins = [20, 21, 34, 56, 78]
+# f_addbfh(bins)
 
 
 #
@@ -523,19 +574,20 @@ def f_getmodelen(model_path):
     return modellen
 
 
-def f_part5Output(repathlist, userPath, desres, modelres):
+def f_part5Output(repathlist, userPath, desres, modelres, impres):
     '''
     第五部分的输出
     :param repathlist: 算法返回的列表
     :param userPath: 用户路径
     :param desres: 描述性分析的结果
     :param modelres: 模型输出结果
+    :param impres: 模型输出的重要变量 part3计算出来
     :return:
     '''
     creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
     filename = 'analysisReport' + '_' + creattime + '_Ccx' + '.xlsx'
     path = os.path.join(userPath, filename)
-    f_analysisReportMain(path, desres, modelres)  # 保存结果至Excel
+    f_analysisReportMain(path, desres, modelres, impres)  # 保存结果至Excel
     part5 = {
         "predictResPath": [repathlist[3], repathlist[4]],  # 这个地方改为list
         "logPath": None,
@@ -544,12 +596,13 @@ def f_part5Output(repathlist, userPath, desres, modelres):
     return part5
 
 
-def f_type2Output(reqId, datasetInfo, descout, path, repathlist, train, test, target_name, userPath, desres):
+def f_type2Output(reqId, datasetInfo, descout, path, repathlist, rawdatacol, train, test, target_name, userPath,
+                  desres):
     part2 = dict({"datasetInfo": datasetInfo}, **descout)
-    part3_2 = f_part3Output(repathlist[2], path, train.columns)
+    part3_2 = f_part3Output(repathlist[2], path, rawdatacol)  # bug 不能为train 因为train已经one-hot过了
     reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     part_4 = f_part4Output(repathlist, train, test, target_name, userPath)
-    part_5 = f_part5Output(repathlist, userPath, desres, part_4)
+    part_5 = f_part5Output(repathlist, userPath, desres, part_4, part3_2)
     dict2 = {"reqId": reqId, "reqTime": reqTime, "type": 2,
              "dataDescription": part2,
              "variableAnalysis": part3_2,
@@ -560,7 +613,7 @@ def f_type2Output(reqId, datasetInfo, descout, path, repathlist, train, test, ta
     return simplejson.dumps(dict2, ensure_ascii=False, ignore_nan=True)
 
 
-def f_modelOutputWriter(writer, res):
+def f_modelOutputWriter(writer, res, res_part3):
     '''
     将模型计算出的结果写出到Excel中
     :param write: 要写出的Excel writer 对象 接着变量描述的写入
@@ -568,6 +621,8 @@ def f_modelOutputWriter(writer, res):
     {"modeldataInfo": modeldataInfo, "modelreport": modelreport,
             "aucksPlot": aucksPlot, "pvalueReport": pvalueReport
             }
+    :param res_part3: f_part3Output 函数计算出的结果
+    {"impVar": impVar.to_dict(orient='records'), "topNpath": topNpath}
     :return: 保存成Excel
     '''
     modeldataInfo = pd.DataFrame(res['modeldataInfo'], index=['训练集', '测试集'])
@@ -581,8 +636,11 @@ def f_modelOutputWriter(writer, res):
 
     # writer = pd.ExcelWriter(path)
     modeldataInfo.to_excel(writer, 'modeldataInfo')
+    # 重要变量
     modelreport.to_excel(writer, 'modelreport')
     pvalueReport.to_excel(writer, 'pvalueReport', index=False)
+    pd.DataFrame(res_part3['impVar']).to_excel(writer, 'ImpVar')
+    pd.read_csv(res_part3['topNpath']).to_excel(writer, 'ImpVarIVdetail', index=False)
 
     PlottrainKS.to_excel(writer, 'PlottrainKS', index=False)
     PlottrainAUC.to_excel(writer, 'PlottrainAUC', index=False)
@@ -725,7 +783,7 @@ def f_modelOutputWriter(writer, res):
 # f_modelOutputWriter(r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\modelOutput.xlsx', res)
 
 
-def f_analysisReportMain(path, desres, modelres):
+def f_analysisReportMain(path, desres, modelres, impres):
     '''
     存储计算结果的主函数
     :param path: 写入的Excel的路径 xxx.xlsx
@@ -735,9 +793,8 @@ def f_analysisReportMain(path, desres, modelres):
     '''
 
     writer = f_VardescWriter(path, desres)
-    f_modelOutputWriter(writer, modelres)
+    f_modelOutputWriter(writer, modelres, impres)
     print('项目计算结果已保存至：', path)
 
-
 # 测试一下 Excel 会被覆盖的问题
-r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\analysisReport_2017-11-30_175927_Ccx.xlsx'
+# r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\analysisReport_2017-11-30_175927_Ccx.xlsx'
