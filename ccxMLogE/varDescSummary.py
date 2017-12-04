@@ -316,11 +316,28 @@ def IV(x, y):
     crtab['q'] = crtab['good'] / crtab.loc['All', 'good']
     crtab['woe'] = np.log(crtab['p'] / crtab['q'])
     iv = (crtab['p'] - crtab['q']) * np.log(crtab['p'] / crtab['q'])
-    crtab['IV'] = sum(iv[(iv != np.inf) & (iv != -np.inf)])
+    crtab['IV'] = np.round(sum(iv[(iv != np.inf) & (iv != -np.inf)]), 4)
     crtab['varname'] = crtab.index.name
     crtab.index.name = 'bins'
     crtab = crtab.reset_index()
     return crtab
+
+
+def f_divide(x, y):
+    '''
+    除法 消除掉被除数为0的情况
+    :param x:
+    :param y:
+    :return:
+    '''
+    ls = []
+    for i, j in zip(x, y):
+        if j == 0:
+            ls.append(-99)
+        else:
+            ls.append(x / y)
+    print(ls)
+    return ls
 
 
 # 如何根据bins来生成lable

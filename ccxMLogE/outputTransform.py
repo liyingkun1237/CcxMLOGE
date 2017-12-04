@@ -124,8 +124,10 @@ def f_part2Output(resdesc, userPath, df):
     # 发现 同步异步都要计算这个的话 会很麻烦
     path_ = f_detailVarhtml(df, userPath)
 
-    # 这是第三部分的事情了
-    path = os.path.join(userPath, 'detailVarIV.csv')
+    # 这是第三部分的事情了 1204 新增了文件的时间戳
+    creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
+    filename = 'detailVarIV' + '_' + creattime + '.csv'
+    path = os.path.join(userPath, filename)
     if len(detailVarIV) > 1:
         detailVarIV.to_csv(path, index=False)
     else:
@@ -212,7 +214,10 @@ def f_part3Output(imppath, topNpath, dfcolnames):
     topNames.sort_values(by=['rank'], inplace=True)
     AllIv = pd.read_csv(topNpath)
     topNIV = pd.merge(topNames, AllIv, left_on='varname', right_on='varname', how='left')
-    topNpath = os.path.join(os.path.dirname(topNpath), 'TopNVarIV.csv')
+    # 1204 新增 增加了时间戳 并发请求时避免线程不安全性
+    creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
+    filename = 'TopNVarIV' + '_' + creattime + '.csv'
+    topNpath = os.path.join(os.path.dirname(topNpath), filename)
     topNIV.to_csv(topNpath, index=False)
     print('重要变量IV值已经保存成功： ', topNpath)
 
@@ -478,11 +483,10 @@ def f_pvalueReport(tepred):
     mhbins[-1] = f_zcPvalue(max(rawbins) + 3.5)  # 加3.5的原因为 让71这种能corver到做大值
     bestbins = pd.Series(mhbins).unique().tolist()
     print('===调整后的分箱=====', bestbins)
-    # 1201 开发一个方法 加上百分号
-    bestbinslabel = f_addbfh(bestbins)
-    tepred['scoreBins'] = pd.cut(x, bestbins, labels=bestbinslabel, right=False)
-    iv = IV(pd.cut(x, bestbins, right=False), y)
-    iv['bins'] = iv['bins'].apply(str)
+    # 1201 开发一个方法 加上百分号,1204发现 加上百分号之后 顺序会发生改变，尝试另外的方法
+    tepred['scoreBins'] = pd.cut(x, bestbins, right=False)
+    iv = IV(tepred['scoreBins'], y)
+    iv['bins'] = iv['bins'].apply(f_addbfh)
     model_pvalue = tepred.groupby('scoreBins')['P_value'].mean().tolist()
     model_pvalue.append(np.nan)
     iv['model_pvalue'] = model_pvalue
@@ -490,17 +494,33 @@ def f_pvalueReport(tepred):
     return iv
 
 
-def f_addbfh(bins):
-    ls = []
-    for idx in range(len(bins) - 1):
-        _, __ = str(bins[idx]), str(bins[idx + 1])
-        ls.append('[' + _ + '% , ' + __ + '%)')
-    return ls
+def f_addbfh(x):
+    '''
+    将区间里的概率值加上 % 号
+    :param x: [0,5)
+    :return: [0%,5%)
+    '''
+    # ls = []
+    # for idx in range(len(x) - 1):
+    #     _, __ = str(x[idx]), str(x[idx + 1])
+    #     ls.append('[' + _ + '% , ' + __ + '%)')
+    x = str(x)
+    try:
+        a, b = x.split(',')
+        a = a + '%'
+        b1, b2 = b.split(')')
+        b1 = b1 + '%'
+        ls = a + ' ,' + b1 + ')'
+        return ls
+    except ValueError:
+        ls = x
+        return ls
 
 
 # 测试一下
-# bins = [20, 21, 34, 56, 78]
-# f_addbfh(bins)
+# xx = pd.read_csv(
+#     r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\ccxboost\model20171201204215\modeldata\d_2017-12-01_train_predict.csv')
+# f_pvalueReport(xx)
 
 
 #
