@@ -60,6 +60,9 @@ def f_mdAllconf(userPath):
         # print('项目路径已修改')
     return all(ls)  # 所有的都修改了
 
+# 日志的路径
+ProjectPATH = os.path.dirname(os.path.split(os.path.realpath(__file__))[0])
+LOGFILEPATH = os.path.join(ProjectPATH, 'Log')
 
 if __name__ == '__main__':
     # 测试一下

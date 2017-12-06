@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='CcxMLOGE',
-    version='0.0.0',
+    version='0.0.1',
     packages=['ccxMLogE'],
     url='2017-11-28',
     license='ccx',

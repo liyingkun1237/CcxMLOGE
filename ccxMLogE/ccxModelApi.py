@@ -64,37 +64,50 @@ def ccxModelApi():
 
 
 def f_threadModelTrain(rawdata, base, cateList, reqId, datasetInfo, userPath):
-    print('变量统计加模型返回')
-    # dummyList = f_VarTypeClassfiy(rawdata, cateList)
-    resdesc = f_mainDesc(rawdata, base['indexName'], base['targetName'], cateList)
-    descout, path3 = f_part2Output4yibu(resdesc, userPath)  # path3 即为所有变量的IV值计算
-    # res = f_type1Output(reqId, datasetInfo, descout, path3)
-    print('开始跑模型 ' * 20)
-    # 模型数据的准备
-    dummyList = list(set(resdesc[4]) - set(resdesc[5]))  # 需要one-hot - 多分类
-    dummyAfterdf = f_dummyOld(rawdata, dummyList)
-    train_path, test_path = f_splitdata(dummyAfterdf, base['targetName'])
-    # 模型训练
-    modeltype = f_getmodelType(base)
-    train_path.index = range(len(train_path))  # 必须加 1129 发现的bug
-    test_path.index = range(len(test_path))
-    repathlist = f_trainModelMain(train_path, test_path, base['indexName'], base['targetName'], userPath,
-                                  modeltype,
-                                  base['arithmetic'])
-    # 模型输出结果
-    res = f_type2Output(reqId, datasetInfo, descout, path3, repathlist, rawdata.columns, train_path, test_path,
-                        base['targetName'], userPath, resdesc)
+    # 会了前端计时方便 计算错误也要回调
+    try:
+        print('变量统计加模型返回')
+        # dummyList = f_VarTypeClassfiy(rawdata, cateList)
+        resdesc = f_mainDesc(rawdata, base['indexName'], base['targetName'], cateList)
+        descout, path3 = f_part2Output4yibu(resdesc, userPath)  # path3 即为所有变量的IV值计算
+        # res = f_type1Output(reqId, datasetInfo, descout, path3)
+        print('开始跑模型 ' * 20)
+        # 模型数据的准备
+        dummyList = list(set(resdesc[4]) - set(resdesc[5]))  # 需要one-hot - 多分类
+        dummyAfterdf = f_dummyOld(rawdata, dummyList)
+        train_path, test_path = f_splitdata(dummyAfterdf, base['targetName'])
+        # 模型训练
+        modeltype = f_getmodelType(base)
+        train_path.index = range(len(train_path))  # 必须加 1129 发现的bug
+        test_path.index = range(len(test_path))
+        repathlist = f_trainModelMain(train_path, test_path, base['indexName'], base['targetName'], userPath,
+                                      modeltype,
+                                      base['arithmetic'])
+        # 模型输出结果
+        res = f_type2Output(reqId, datasetInfo, descout, path3, repathlist, rawdata.columns, train_path, test_path,
+                            base['targetName'], userPath, resdesc)
 
-    # 回调输出接口
-    header_dict = {"Content-Type": "application/json"}
-    # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
-    url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上环境请求接口
-    res_ = res.encode('utf-8')
-    r = requests.post(url, data=res_, headers=header_dict)
-    # print('用时' * 20, (time.time() - st()))
-    print(r.text)
-    print('回调内容===\n', res)
-    return res
+        # 回调输出接口
+        header_dict = {"Content-Type": "application/json"}
+        # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
+        url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上环境请求接口
+        res_ = res.encode('utf-8')
+        r = requests.post(url, data=res_, headers=header_dict)
+        # print('用时' * 20, (time.time() - st()))
+        print(r.text)
+        print('回调内容===\n', res)
+        return res
+    except Exception as e:
+        header_dict = {"Content-Type": "application/json"}
+        # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
+        url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上环境请求接口
+        res = json.dumps({"code": 502, "reqId": reqId, "msg": str(e)}, ensure_ascii=False)
+        res_ = res.encode('utf-8')
+        r = requests.post(url, data=res_, headers=header_dict)
+        # print('用时' * 20, (time.time() - st()))
+        print(r.text)
+        print('回调内容===\n', res)
+        return res
 
 
 def f_getmodelType(base):

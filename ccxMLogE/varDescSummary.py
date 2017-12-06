@@ -3,6 +3,7 @@
 1.连续型变量 分类型变量的汇总分析 以及IV的计算
 2.html的生成
 """
+from ccxMLogE.logModel import ABS_log
 
 """
 对dataframe按照分类型变量 还是 连续性变量 给予描述性分析
@@ -581,7 +582,7 @@ def f_VarTypeClassfiy(df, cateList):
 
 
 #############################对变量的详细汇总 desc+IV
-
+@ABS_log('MLogEDebug')
 def f_mainDesc(df, index_name, target_name, cateList):
     '''
     变量描述性分析的总函数

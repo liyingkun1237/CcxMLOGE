@@ -1,0 +1,63 @@
+
+此文档的主要作用为记录机器学习平台开发中出现的bug，及解决方法：
+
+2017-12-06 发现如下bug 需要解决
+
+1.raise ValueError('Unknown element o')
+发生位置 绘制auc ks曲线图时发生
+
+解决方法：去modelutil中的plot_roc_line函数中加入try except
+原因分析：猜想是linux下matlib的font原因导致的，主要原因可能是图中有中文的问题
+
+2.TypeError: Object of type int64 is not JSON serializable
+发生位置 f_type1Output 中 序列化对象时发生
+
+解决办法 ： try except 如果是TypeError 就去一一处理，这一次是避免int64类型数据的出现
+解决时发现 这是个非常顽固的bug
+
+解决bug的记录：
+x = np.array([1, 2, 3], dtype=np.int64)
+    x
+    x.dtype
+    y = x.astype(np.int32)
+    y
+    z = [1, 2, 3]
+
+    xx = pd.DataFrame(x, columns=['x']).to_dict(orient='records')
+    yy = pd.DataFrame(y, columns=['y']).to_dict(orient='records')
+    zz = pd.DataFrame({"z1": z, "z2": z})
+    zz.dtypes
+    zz.z1 = zz.z1.apply(np.int)
+    zz.z2 = zz.z2.apply(np.int)
+    zzz = zz.to_dict(orient='records')
+    zzz
+
+    simplejson.dumps({'xx': xx}, ensure_ascii=False, ignore_nan=True)
+    simplejson.dumps({'yy': yy}, ensure_ascii=False, ignore_nan=True)
+    simplejson.dumps(zzz, ensure_ascii=False, ignore_nan=True)
+    import json
+    json.dumps(zzz, ensure_ascii=False, cls=MyEncoder)
+
+    # 经发现 DataFrame中的int 都不能转为json 真的是奇怪了啊
+
+
+import json
+
+#https://stackoverflow.com/questions/27050108/convert-numpy-type-to-python/27050186#27050186
+class MyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(MyEncoder, self).default(obj)
+
+
+
+
+3.在异步的线程中，如果出错，也要回调，回调内容为，请求ID，错误的大致内容，状态码 502
+
+4.在大的计算函数上，加入错误日志的装饰器函数

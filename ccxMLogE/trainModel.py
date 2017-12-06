@@ -12,6 +12,8 @@ import pandas as pd
 from ccxmodel.modelutil import ModelUtil
 import numpy as np
 
+from ccxMLogE.logModel import ABS_log
+
 
 def f_genmodelCodeDict(userPath):
     '''
@@ -93,7 +95,7 @@ def f_rf(modelmain, modeltype, modelCode):
         train_path, test_path, index_name, target_name = modelmain.train_path, modelmain.test_path, modelmain.index_name, modelmain.target_name
         return f_recursionrfModel(train_path, test_path, index_name, target_name, modelCode[modeltype], 0)
 
-
+@ABS_log('MLogEDebug')
 def f_trainModelMain(train_path, test_path, index_name, target_name, userPath, modeltype, arithmetic):
     '''
     调用模型的主函数

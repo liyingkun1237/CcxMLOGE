@@ -81,7 +81,7 @@ import numpy as np
 # }
 from ccxmodel.modelutil import ModelUtil
 from sklearn.metrics import roc_curve
-
+from ccxMLogE.logModel import ABS_log
 from ccxMLogE.trainModel import f_getAucKs
 from ccxMLogE.varDescSummary import f_rawbins, IV, f_VardescWriter
 
@@ -99,6 +99,7 @@ def f_detailVarhtml(df, userPath):
     return path
 
 
+@ABS_log('MLogEDebug')
 def f_part2Output(resdesc, userPath, df):
     '''
     数据集的描述性分析结果
@@ -133,9 +134,28 @@ def f_part2Output(resdesc, userPath, df):
     else:
         path = None
 
+    # 1206 发现了int64 不能被序列化的bug 这个bug的出现位置就是这个地方
+
     return {"varSummary": {"cateVar": cateVar, "numVar": numVar}, "detailVarPath": {"path": path_}}, path
 
 
+class MyEncoder(simplejson.JSONEncoder):
+    '''
+    此自定义类为了解决 int 不能被序列化的bug
+    '''
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(MyEncoder, self).default(obj)
+
+
+@ABS_log('MLogEDebug')
 def f_part2Output4yibu(resdesc, userPath):
     '''
     数据集的描述性分析结果 为了异步服务 异步时 不会计算html 页面
@@ -171,6 +191,7 @@ def f_part2Output4yibu(resdesc, userPath):
     return {"varSummary": {"cateVar": cateVar, "numVar": numVar}, "detailVarPath": {"path": None}}, path
 
 
+@ABS_log('MLogEDebug')
 def f_type1Output(reqId, datasetInfo, descout, path):
     part2 = dict({"datasetInfo": datasetInfo}, **descout)
     part3_1 = {"impVar": None, "topNpath": path}
@@ -181,7 +202,7 @@ def f_type1Output(reqId, datasetInfo, descout, path):
              "modelOutput": None,
              "otherOutput": None
              }
-    return simplejson.dumps(dict1, ensure_ascii=False, ignore_nan=True)
+    return simplejson.dumps(dict1, ensure_ascii=False, ignore_nan=True, cls=MyEncoder)
 
 
 ##
@@ -487,8 +508,8 @@ def f_pvalueReport(tepred):
     tepred['scoreBins'] = pd.cut(x, bestbins, right=False)
     iv = IV(tepred['scoreBins'], y)
     iv['bins'] = iv['bins'].apply(f_addbfh)
-    model_pvalue = tepred.groupby('scoreBins')['P_value'].mean().tolist()
-    model_pvalue.append(np.nan)
+    model_pvalue = tepred.groupby('scoreBins')['P_value'].mean().tolist() + [tepred['P_value'].mean()]
+    # model_pvalue.append(np.nan)
     iv['model_pvalue'] = model_pvalue
     # print(tepred.head(100))
     return iv
@@ -616,6 +637,7 @@ def f_part5Output(repathlist, userPath, desres, modelres, impres):
     return part5
 
 
+@ABS_log('MLogEDebug')
 def f_type2Output(reqId, datasetInfo, descout, path, repathlist, rawdatacol, train, test, target_name, userPath,
                   desres):
     part2 = dict({"datasetInfo": datasetInfo}, **descout)
@@ -630,7 +652,7 @@ def f_type2Output(reqId, datasetInfo, descout, path, repathlist, rawdatacol, tra
              "otherOutput": part_5
              }
 
-    return simplejson.dumps(dict2, ensure_ascii=False, ignore_nan=True)
+    return simplejson.dumps(dict2, ensure_ascii=False, ignore_nan=True, cls=MyEncoder)
 
 
 def f_modelOutputWriter(writer, res, res_part3):
