@@ -240,7 +240,7 @@ def f_mainBestBins(x, y):
         ddd = dd.dropna()
         # 分箱
         rawbins = f_rawbins(ddd.iloc[:, 0], ddd.iloc[:, 1])
-        print('原始的决策树下的最优分箱==含缺失', rawbins)
+        print('变量名', x.name, '原始的决策树下的最优分箱==含缺失', rawbins)
         # 美化分箱
         mhbins = [f_xiaoshu(i) for i in rawbins]
         bestbins, nan = f_mdqujian(x, mhbins)
@@ -253,7 +253,7 @@ def f_mainBestBins(x, y):
         # 即不含有无穷值和缺失值的情况
         # 分箱
         rawbins = f_rawbins(x, y)
-        print('原始的决策树下的最优分箱', rawbins)
+        print('变量名', x.name, '原始的决策树下的最优分箱', rawbins)
         # 美化分箱
         mhbins = [f_xiaoshu(i) for i in rawbins]
         bestbins, nan = f_mdqujian(x, mhbins)
@@ -301,7 +301,7 @@ def f_mainBestBins4multi(x, y):
         bestbins, nan = f_mdqujian(x, rawbins)
         return bestbins, nan
 
-
+@ABS_log('MLogEDebug')
 def IV(x, y):
     '''
 
@@ -555,7 +555,7 @@ def f_VarTypeClassfiy(df, cateList):
     :return: 连续型变量的列表 少分类型变量的列表 多分类型变量的列表 需要one-hot处理的变量列表
     # 1 分类型和取值个数小于10的连续型变量  2 多分类型  0 连续型
     '''
-    cate_ = df.select_dtypes(include=[object]).columns.tolist()  # 一定是分类型变量
+    cate_ = df.select_dtypes(include=[object, bool]).columns.tolist()  # 一定是分类型变量 bool为1211新增
     num_ = df.select_dtypes(include=[int, float, 'int64', 'float64']).columns.tolist()  # 连续型变量备选
     # 不在这两个list的变量类型有 时间类型，unit64类型等等
     aa = df.apply(unique_)

@@ -92,9 +92,11 @@ def f_detailVarhtml(df, userPath):
     :param df:
     :return:
     '''
-
+    reqTime = datetime.today().strftime('%Y-%m-%d')
+    respath = f_mkdir(userPath, 'vardesc')
     profile = pandas_profiling.ProfileReport(df)
-    path = os.path.join(userPath, 'detailVarhtml.html')
+    filename = 'detailVarhtml_' + reqTime + '.html'
+    path = os.path.join(respath, filename)
     profile.to_file(outputfile=path)
     return path
 
@@ -114,8 +116,8 @@ def f_part2Output(resdesc, userPath, df):
         cateVardesc = resdesc[1]
         detailVarIV = resdesc[2]
     else:
-        numVardesc = {}
-        cateVardesc = {}
+        numVardesc = pd.DataFrame()
+        cateVardesc = pd.DataFrame()
         detailVarIV = pd.DataFrame()
 
     numVar = numVardesc.to_dict(orient='records')
@@ -128,7 +130,9 @@ def f_part2Output(resdesc, userPath, df):
     # 这是第三部分的事情了 1204 新增了文件的时间戳
     creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
     filename = 'detailVarIV' + '_' + creattime + '.csv'
-    path = os.path.join(userPath, filename)
+    # 1211 新增的 存储文件夹
+    respath = f_mkdir(userPath, 'vardesc')
+    path = os.path.join(respath, filename)
     if len(detailVarIV) > 1:
         detailVarIV.to_csv(path, index=False)
     else:
@@ -170,8 +174,8 @@ def f_part2Output4yibu(resdesc, userPath):
         cateVardesc = resdesc[1]
         detailVarIV = resdesc[2]
     else:
-        numVardesc = {}
-        cateVardesc = {}
+        numVardesc = pd.DataFrame()  # 1211 修改 要不然后续的.to_dict(orient='records')会报错
+        cateVardesc = pd.DataFrame()
         detailVarIV = pd.DataFrame()
 
     numVar = numVardesc.to_dict(orient='records')
@@ -182,7 +186,12 @@ def f_part2Output4yibu(resdesc, userPath):
     # path_ = f_detailVarhtml(df, userPath)
 
     # 这是第三部分的事情了
-    path = os.path.join(userPath, 'detailVarIV.csv')
+    # 这是第三部分的事情了 1204 新增了文件的时间戳
+    creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
+    filename = 'detailVarIV' + '_' + creattime + '.csv'
+    # 1211 新增的 存储文件夹
+    respath = f_mkdir(userPath, 'vardesc')
+    path = os.path.join(respath, filename)
     if len(detailVarIV) > 1:
         detailVarIV.to_csv(path, index=False)
     else:
@@ -228,12 +237,12 @@ def f_part3Output(imppath, topNpath, dfcolnames):
     :param dfcolnames 原始数据的字段
     :return: 结果字典 {}
     '''
-    impVar = pd.read_csv(imppath)
+    impVar = f_readdata(imppath)
     # topN这里可以优化 往回追到one-hot之前的变量列表 在只显示全部的重要变量
     # 开发一个函数 依据one-hot后的变量 找到没有one-hot之前的变量名
     topNames = f_getRawcolnames(impVar.Feature_Name, dfcolnames)
     topNames.sort_values(by=['rank'], inplace=True)
-    AllIv = pd.read_csv(topNpath)
+    AllIv = f_readdata(topNpath)
     topNIV = pd.merge(topNames, AllIv, left_on='varname', right_on='varname', how='left')
     # 1204 新增 增加了时间戳 并发请求时避免线程不安全性
     creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
@@ -243,6 +252,21 @@ def f_part3Output(imppath, topNpath, dfcolnames):
     print('重要变量IV值已经保存成功： ', topNpath)
 
     return {"impVar": impVar.to_dict(orient='records'), "topNpath": topNpath}
+
+
+def f_readdata(path):
+    '''
+    1208发现的bug
+    读取数据 由于原始数据中有中文 导致了 我存储IV时 编码为gbk 使用pd.read_csv 时 默认编码为utf-8
+    :param path:
+    :return:
+    '''
+    try:
+        return pd.read_csv(path, encoding='utf-8')
+    except UnicodeDecodeError:
+        return pd.read_csv(path, encoding='gbk')
+    except:
+        print('--读取全部数据的IV结果出错--')
 
 
 def f_getRawcolnames(impVarcol, dfcolnames):
@@ -257,12 +281,42 @@ def f_getRawcolnames(impVarcol, dfcolnames):
     for i in dfcolnames:
         # 拿到原始的字段名
         for j, rank in zip(impVarcol, np.arange(len(impVarcol)) + 1):
-            if str(i) in str(j):
+            # 12月11日 有个bug, bug原因 V28 in V282_1.0 ,先找到V28 后找到V282
+            # i 短 j 长
+            if f_find(str(i), str(j)):
                 ls.append(i)
                 rankls.append(rank)
                 break
 
     return pd.DataFrame({'varname': ls, 'rank': rankls})
+
+
+def f_find(rawcol, onehotcol):
+    '''
+    1211日发现bug，原始变量名短 onehotcol变量名长 V28 in V282_1.0 找到了V28而不是V282
+    :param rawcol: 原始字段列名
+    :param onehotcol: onehot后的变量列名
+    :return:
+    后期优化思路：ont-hot时就生成一个对应的字典 是最稳妥的
+    '''
+    x = onehotcol.split('_')  # 用下划线切一下
+    if len(x) == 1:
+        # 说明这个onehot的变量没有下划线，那就说明了原始变量没有经过onehot处理
+        return rawcol == onehotcol
+    else:
+        # 说明了onehot中有下划线，下划线的来源有两个，一个是原始变量中有，一个是原始变量中没有
+        if '_' in rawcol:
+            # 原始变量中有下划线
+            y = len(rawcol.split('_'))
+            if len(x) == y:
+                # 说明了onehot中的下划线来源于原始变量中下划线
+                return rawcol == onehotcol
+            elif len(x) == y + 1:
+                # 说明了下划线来源于one_hot
+                return rawcol == '_'.join(x[0:-1])
+        else:
+            # 原始变量中没有下划线 则下划线来源于onehot之后
+            return rawcol == '_'.join(x[0:-1])
 
 
 # 测一下topN
@@ -444,10 +498,13 @@ def f_part4Output(repathlist, train, test, target_name, userPath):
     teks = pd.DataFrame([range(len(tpr)), tpr, fpr, tpr - fpr], index=['x', 'tpr', 'fpr', 'ks']).T
     teauc = pd.DataFrame([fpr, tpr], index=['x', 'y']).T
 
-    trkspath = os.path.join(userPath, 'trainKSpath.csv')
-    traucpath = os.path.join(userPath, 'trainAUCpath.csv')
-    tekspath = os.path.join(userPath, 'testKSpath.csv')
-    teaucpath = os.path.join(userPath, 'testAUCpath.csv')
+    # 1211 优化 存储目录更为人性化
+    respath = f_mkdir(userPath, 'modelres')
+
+    trkspath = os.path.join(respath, 'trainKSpath.csv')
+    traucpath = os.path.join(respath, 'trainAUCpath.csv')
+    tekspath = os.path.join(respath, 'testKSpath.csv')
+    teaucpath = os.path.join(respath, 'testAUCpath.csv')
 
     trks.to_csv(trkspath, index=False)
     trauc.to_csv(traucpath, index=False)
@@ -573,7 +630,7 @@ def f_modeldataInfo(repathlist, train, test, target_name):
     trrow, trcol = train.shape
     terow, tecol = test.shape
     # 3.重要变量个数
-    implen = pd.read_csv(repathlist[2]).shape[0]
+    implen = f_readdata(repathlist[2]).shape[0]
     # 4.正负样本的比例
     x = train[target_name].value_counts().values.tolist()
     y = train[target_name].value_counts().values.tolist()
@@ -607,7 +664,7 @@ def f_getmodelen(model_path):
     except:
         try:
             # 随机森林的获取方法
-            modellen = x.n_features_
+            modellen = x[0].n_features_
         except:
             # gbm 获取入模变量的方法
             modellen = len(x.feature_name())
@@ -615,7 +672,7 @@ def f_getmodelen(model_path):
     return modellen
 
 
-def f_part5Output(repathlist, userPath, desres, modelres, impres):
+def f_part5Output(repathlist, userPath, desres, modelres, impres, modelPath):
     '''
     第五部分的输出
     :param repathlist: 算法返回的列表
@@ -627,11 +684,12 @@ def f_part5Output(repathlist, userPath, desres, modelres, impres):
     '''
     creattime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
     filename = 'analysisReport' + '_' + creattime + '_Ccx' + '.xlsx'
-    path = os.path.join(userPath, filename)
+    respath = f_mkdir(userPath, 'modelres')
+    path = os.path.join(respath, filename)
     f_analysisReportMain(path, desres, modelres, impres)  # 保存结果至Excel
     part5 = {
         "predictResPath": [repathlist[3], repathlist[4]],  # 这个地方改为list
-        "logPath": None,
+        "modelPath": modelPath,  # 1212 修改的 将模型保存下来
         "analysisReport": path
     }
     return part5
@@ -639,12 +697,12 @@ def f_part5Output(repathlist, userPath, desres, modelres, impres):
 
 @ABS_log('MLogEDebug')
 def f_type2Output(reqId, datasetInfo, descout, path, repathlist, rawdatacol, train, test, target_name, userPath,
-                  desres):
+                  desres, modelPath):
     part2 = dict({"datasetInfo": datasetInfo}, **descout)
     part3_2 = f_part3Output(repathlist[2], path, rawdatacol)  # bug 不能为train 因为train已经one-hot过了
     reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     part_4 = f_part4Output(repathlist, train, test, target_name, userPath)
-    part_5 = f_part5Output(repathlist, userPath, desres, part_4, part3_2)
+    part_5 = f_part5Output(repathlist, userPath, desres, part_4, part3_2, modelPath)
     dict2 = {"reqId": reqId, "reqTime": reqTime, "type": 2,
              "dataDescription": part2,
              "variableAnalysis": part3_2,
@@ -682,7 +740,7 @@ def f_modelOutputWriter(writer, res, res_part3):
     modelreport.to_excel(writer, 'modelreport')
     pvalueReport.to_excel(writer, 'pvalueReport', index=False)
     pd.DataFrame(res_part3['impVar']).to_excel(writer, 'ImpVar')
-    pd.read_csv(res_part3['topNpath']).to_excel(writer, 'ImpVarIVdetail', index=False)
+    f_readdata(res_part3['topNpath']).to_excel(writer, 'ImpVarIVdetail', index=False)
 
     PlottrainKS.to_excel(writer, 'PlottrainKS', index=False)
     PlottrainAUC.to_excel(writer, 'PlottrainAUC', index=False)
@@ -838,5 +896,45 @@ def f_analysisReportMain(path, desres, modelres, impres):
     f_modelOutputWriter(writer, modelres, impres)
     print('项目计算结果已保存至：', path)
 
+
 # 测试一下 Excel 会被覆盖的问题
 # r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\analysisReport_2017-11-30_175927_Ccx.xlsx'
+
+
+def f_mkdir(userPath, dir):
+    '''
+    一个函数 在用户目录下 创建文件夹
+    ccxboost,ccxrf,ccxgbm,conf,datafile, vardesc,modelres
+
+    :param userPath:
+    :return: 新建文件夹的绝对路径
+    '''
+    path = os.path.join(userPath, dir)
+    if os.path.exists(path):
+        pass
+    else:
+        os.mkdir(path)
+    return path
+
+
+# 模型预测结果返回
+# 请求格式
+'''
+{'reqId': '请求id', 'modelreqId': '模型训练时的请求id', 'modelPath': '模型保存的路径',
+ 'base': '待预测的数据集位置'
+ }
+'''
+
+'''
+返回格式
+正常：
+{'code':'','reqId':'','predictResPath':'预测结果的文件路径','reqTime':'请求时间戳'}
+异常：
+{'code':'503','Msg':'异常信息'}
+'''
+
+
+def f_modelPredictOutput(reqId, predictResPath):
+    reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    res = {'code': 200, 'reqId': reqId, 'predictResPath': predictResPath, 'reqTime': reqTime}
+    return simplejson.dumps(res, ensure_ascii=False)

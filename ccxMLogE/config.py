@@ -60,9 +60,14 @@ def f_mdAllconf(userPath):
         # print('项目路径已修改')
     return all(ls)  # 所有的都修改了
 
+
 # 日志的路径
-ProjectPATH = os.path.dirname(os.path.split(os.path.realpath(__file__))[0])
-LOGFILEPATH = os.path.join(ProjectPATH, 'Log')
+# ProjectPATH = os.path.dirname(os.path.split(os.path.realpath(__file__))[0])
+# LOGFILEPATH = os.path.join(ProjectPATH, 'Log')
+#
+# 发现这么做的一个不好处 有问题
+LOGFILEPATH = '/ccxMLogE/Log'  # 指定路径
+# LOGFILEPATH = r'C:\Users\liyin\Desktop\CcxMLOGE'  # 指定路径
 
 if __name__ == '__main__':
     # 测试一下

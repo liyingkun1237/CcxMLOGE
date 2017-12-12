@@ -3,6 +3,8 @@
 """
 import pandas as pd
 
+from ccxMLogE.logModel import ABS_log
+
 
 def f_getCateList(fields):
     '''
@@ -18,6 +20,7 @@ def f_getCateList(fields):
 def f_readData(base):
     '''
     读取数据
+    很关键 1208 发现60.17上存在严重的编码问题 试图解决
     :param fileUrl: 文件路径
     :param fileType: 文件类型
     :param codeType: 文件编码
@@ -27,9 +30,12 @@ def f_readData(base):
     '''
     fileUrl, fileType, codeType = base['fileUrl'], base['fileType'], base['codeType']
     fielDelimiter, nullValue = base['fielDelimiter'], base['nullValue']
+    nullValues = ['', '  # N/A', '#N/A N/A', '#NA', '-1.#IND', '-1.#QNAN', '-NaN', '-nan', '1.#IND', '1.#QNAN', 'N/A',
+                  'NA', 'NULL', 'NaN', 'n/a', 'nan', 'null']
+    nullValues = nullValues + [nullValue]
     try:
         if fileType == 'csv':
-            data = pd.read_csv(fileUrl, sep=fielDelimiter, na_values=nullValue, encoding=codeType,
+            data = pd.read_csv(fileUrl, sep=fielDelimiter, na_values=nullValues, encoding=codeType,
                                error_bad_lines=False)
             return data
         elif fileType == 'txt':
@@ -48,4 +54,4 @@ def f_readData(base):
             return data
 
     except Exception as e:
-        print(str(e))
+        print('数据读取bug', str(e))
