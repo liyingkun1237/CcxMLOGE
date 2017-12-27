@@ -61,3 +61,49 @@ class MyEncoder(json.JSONEncoder):
 3.在异步的线程中，如果出错，也要回调，回调内容为，请求ID，错误的大致内容，状态码 502
 
 4.在大的计算函数上，加入错误日志的装饰器函数
+
+
+5.2017-12-04 发现
+ UserWarning: Multiprocessing backed parallel loops cannot be nested below threads, setting n_jobs=1
+
+ 随机森林出现的问题
+
+
+6.2017-12-21 发现
+
+在弄建模大赛的数据时 出现了bug
+service abrtd status
+systemctl stop abrtd
+
+bug原因，在跑GBM时，触发了系统的什么东西 导致了将服务杀死
+
+Dec 21 18:05:55 datasvr6017 abrt-server[107804]: Executable '/home/anaconda3/bin/python3.6' doesn't belong to any package and ProcessUnpackaged is set to 'no'
+Dec 21 18:05:55 datasvr6017 abrt-server[107804]: 'post-create' on '/var/spool/abrt/ccpp-2017-12-21-18:05:49-106810' exited with 1
+Dec 21 18:05:55 datasvr6017 abrt-server[107804]: Deleting problem directory '/var/spool/abrt/ccpp-2017-12-21-18:05:49-106810'
+
+[root@datasvr6017 CcxMLOGE-0.1.0]# cat /var/log/dmesg |grep 'kill'
+[root@datasvr6017 CcxMLOGE-0.1.0]# cat /var/log/messages |grep 'kill'
+Dec 21 17:11:21 datasvr6017 abrt-hook-ccpp: Process 178683 (python3.6) of user 0 killed by SIGSEGV - dumping core
+Dec 21 17:24:01 datasvr6017 abrt-hook-ccpp: Process 104342 (python3.6) of user 0 killed by SIGSEGV - dumping core
+Dec 21 17:31:20 datasvr6017 abrt-hook-ccpp: Process 105017 (python3.6) of user 0 killed by SIGSEGV - dumping core
+Dec 21 17:39:39 datasvr6017 abrt-hook-ccpp: Process 105305 (python3.6) of user 0 killed by SIGSEGV - dumping core
+Dec 21 18:05:49 datasvr6017 abrt-hook-ccpp: Process 106810 (python3.6) of user 0 killed by SIGSEGV - dumping core
+
+#此bug 暂未解决 解决思路：更换lightgbm的版本
+
+7.2017-12-25 时发现bug
+bug1: File "/home/anaconda3/lib/python3.6/site-packages/ccxmodel/modelmain.py", line 139, in ccxboost_main
+    param, num_round = Model.get_bstpram(re)
+bug分析：由于数据量较小 出现了惩罚因子较大，导致的被零除的错误
+
+File "/home/anaconda3/lib/python3.6/site-packages/ccxmodel/modelmain.py", line 87, in ccxrf_main
+    trks_path = MU.plot_ks_line(train[y_colnames], train_pred_y, title=cv_mess + '_train_ks-Curve')
+  File "/home/anaconda3/lib/python3.6/site-packages/ccxmodel/modelutil.py", line 109, in plot_ks_line
+    plt.xticks(np.arange(0, len(tpr), len(tpr) // 10), np.arange(0, 1.1, 0.1))
+ZeroDivisionError: division by zero
+
+bug分析：同理 在画图时 也出现了类似的错误
+
+bug解决思路：重新一次获取最优参数的函数 使其更为健全，画图的语句，用try catch 包住
+
+

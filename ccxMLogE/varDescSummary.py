@@ -129,10 +129,17 @@ def f_zc(x, f=1):
     :return:
     '''
     n = len(str(int(x)))
-    if np.ceil(x) % 10 ** n == 0:
-        return x
+    if n > 6:
+        f = n - 6
+        if np.ceil(x) % 10 ** n == 0:
+            return x
+        else:
+            return round(x / 10 ** n, f) * 10 ** n
     else:
-        return np.round(x / 10 ** n, f) * 10 ** n
+        if np.ceil(x) % 10 ** n == 0:
+            return x
+        else:
+            return round(x / 10 ** n, f) * 10 ** n
 
 
 def f_xiaoshu(x):
@@ -142,7 +149,7 @@ def f_xiaoshu(x):
     :return:
     '''
     if x < 1:
-        x = np.round(x, 4)  # 取四位小数
+        x = round(x, 4)  # 取四位小数
         return f_zc(x * 10000, 2) / 10000
     else:
         return f_zc(x, 2)
@@ -163,6 +170,8 @@ def f_mdqujian(x, bins):
     if max_ >= bins[-1]:  # 即美化后的分箱不能取到最大值时,取等的原因为左闭右开区间
         bins[-1] = np.ceil(max_ + 1)
     bins = pd.Series(bins).unique().tolist()  # 去除重复值 (损失了最优分箱的效果，如果出现了这个情况)
+
+    bins = [round(i, 2) for i in bins]  # 2017-12-19 新增 将np.round 替换为了round
 
     if -99 not in x and -99 < bins[0] and any(pd.isnull(x)):  # 限制了bins里面只能为可比较的数字
         bins.insert(0, -99)
@@ -300,6 +309,7 @@ def f_mainBestBins4multi(x, y):
         # mhbins = [f_xiaoshu(i) for i in rawbins]
         bestbins, nan = f_mdqujian(x, rawbins)
         return bestbins, nan
+
 
 @ABS_log('MLogEDebug')
 def IV(x, y):
@@ -719,6 +729,7 @@ def f_VardescWriter(path, res):
     return writer
 
 
+r'''
 if __name__ == '__main__':
     FP_RawData = pd.read_csv(r'C:\Users\liyin\Desktop\Ccx_Fp_ABS\lyk_A\1019_API_xuqiu\FP_VAR_ALL_1020.csv',
                              encoding='gbk')
@@ -788,3 +799,16 @@ if __name__ == '__main__':
     ##################
     f_VardescWriter(r'C:\Users\liyin\Desktop\CcxMLOGE\code_DF\data\xxx.xlsx',
                     f_mainDesc(newdata, index_name, target_name, cateList))
+
+'''
+r'''
+df = pd.read_csv(r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\Bugkun.csv')
+
+f_mainDesc(df, 'new_var', 'target', [])
+f_mainDesc(df, 'old_var', 'target', [])
+
+df = pd.read_csv(r'C:\Users\liyin\Desktop\CcxMLOGE\TestUnit\base14_1130.csv')
+
+f_mainDesc(df, 'contract_id', 'target', [])
+
+'''

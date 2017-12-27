@@ -6,35 +6,37 @@ import logging
 import datetime
 import os
 from ccxMLogE.config import LOGFILEPATH
+import sys
+
 
 # 创建一个info级别的日志文件，按天创建
-def tn_infologger(message):
+def ml_infologger(username, reqId):
     if os.path.exists(LOGFILEPATH):
         os.chdir(LOGFILEPATH)
     else:
         os.mkdir(LOGFILEPATH)
         os.chdir(LOGFILEPATH)
 
-    format = '%(asctime)s - %(filename)s - [line:%(lineno)d] - %(levelname)s:\n %(message)s'
+    format = '[%(asctime)s - line:%(lineno)d - %(levelname)s]:{}--> %(message)s'.format(reqId)
     curDate = datetime.date.today() - datetime.timedelta(days=0)
-    infoLogName = r'%s_info_%s.log' % (message, curDate)
+    infoLogName = r'%s_info_%s.log' % (username, curDate)
 
     formatter = logging.Formatter(format)
 
-    infoLogger = logging.getLogger('%s_info_%s.log' % (message, curDate))
-
+    infoLogger = logging.getLogger('%s_info_%s.log' % (username, curDate))
+    logpath = os.path.join(LOGFILEPATH, infoLogger.name)
     #  这里进行判断，如果logger.handlers列表为空，则添加，否则，直接去写日志
     if not infoLogger.handlers:
         infoLogger.setLevel(logging.INFO)
 
-        infoHandler = logging.FileHandler(infoLogName, 'a')
+        infoHandler = logging.FileHandler(infoLogName, 'a', encoding='utf-8')
         infoHandler.setLevel(logging.INFO)
         infoHandler.setFormatter(formatter)
         infoLogger.addHandler(infoHandler)
 
     os.chdir(os.pardir)
 
-    return infoLogger
+    return infoLogger, logpath
 
 
 # 创建一个DEBUG级别的日志文件，按天创建
@@ -85,3 +87,38 @@ def ABS_log(message):
         return handle_args
 
     return handle_func
+
+
+def f_stdout2log(logPath, func, *args, **kwargs):
+    '''
+    将控制台的输出重定向到日志
+    :param logPath:
+    :param func:
+    :param args:
+    :param kwargs:
+    :return:
+    '''
+
+    temp = sys.stdout  # 记录当前输出指向，默认是consle ,12-25 行缓冲模式 buffering=1,
+    with open(logPath, "a+", buffering=1, encoding='utf-8') as f:
+        sys.stdout = f  # 输出指向txt文件
+        re = func(*args, **kwargs)
+        sys.stdout = temp  # 输出重定向回consle
+        # print(f.readlines())
+    return re
+
+
+if __name__ == '__main__':
+    log_ = ml_infologger('liyingkun7')
+    log_.info('log test info2')
+
+    logPath = r'C:\Users\liyin\Desktop\CcxMLOGE\liyingkun_info_2017-12-20.log'
+
+
+    def test(x):
+        print('ssss  test  consolcdfd dfvfvrf 李映坤')
+
+
+    test(1)
+    f_stdout2log(logPath, test, 1)
+    print('11111')

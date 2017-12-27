@@ -92,12 +92,13 @@ def f_detailVarhtml(df, userPath):
     :param df:
     :return:
     '''
-    reqTime = datetime.today().strftime('%Y-%m-%d')
+    reqTime = datetime.today().strftime('%Y-%m-%d_%H%M%S')
     respath = f_mkdir(userPath, 'vardesc')
     profile = pandas_profiling.ProfileReport(df)
     filename = 'detailVarhtml_' + reqTime + '.html'
     path = os.path.join(respath, filename)
     profile.to_file(outputfile=path)
+    print('scdfsscfsf', filename)
     return path
 
 
@@ -543,8 +544,8 @@ def f_zcPvalue(x):
     if np.ceil(x) % 10 == 0 or np.ceil(x) % 5 == 0:
         return np.ceil(x)
     else:
-        a = np.round(x / 5, 0) * 5
-        b = np.round(x / 10, 0) * 10
+        a = round(x / 5, 0) * 5
+        b = round(x / 10, 0) * 10
         if np.abs(a - x) < np.abs(b - x):
             return a
         else:
@@ -917,7 +918,7 @@ def f_mkdir(userPath, dir):
     return path
 
 
-# 模型预测结果返回
+# 模型预测结果返回--无监督返回
 # 请求格式
 '''
 {'reqId': '请求id', 'modelreqId': '模型训练时的请求id', 'modelPath': '模型保存的路径',
@@ -934,7 +935,132 @@ def f_mkdir(userPath, dir):
 '''
 
 
-def f_modelPredictOutput(reqId, predictResPath):
+def f_modelPredictOutputType0(reqId, predictResPath):
     reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     res = {'code': 200, 'reqId': reqId, 'predictResPath': predictResPath, 'reqTime': reqTime}
+    return simplejson.dumps(res, ensure_ascii=False)
+
+
+# 模型预测结果返回--有监督返回
+# 请求格式 和无监督保持一致
+'''
+{'reqId': '请求id', 'modelreqId': '模型训练时的请求id', 'modelPath': '模型保存的路径',
+ 'base': '待预测的数据集位置'
+ }
+'''
+
+'''
+返回格式 --内容比无监督多很多
+正常：
+{'code':'状态码','reqId':'请求id','predictResPath':'预测结果的文件路径','reqTime':'请求时间戳',
+'modeldataInfo':'预测集数据预览','modelreport':'预测集模型指标报告','pvalueReport':'预测集概率分箱结果',
+}
+
+"modeldataInfo": [
+      {
+        "入模维度": 87.0,
+        "总维度": 90.0,
+        "样本量": 17103.0,
+        "正样本比例": 0.18096240425656318,
+        "正负样本比": 4.526009693053312,
+        "重要变量": 49.0
+      }]
+      
+"modelreport": [
+      {
+        "AUC": 0.7659502555198091,
+        "KS": 0.38199279617739784,
+        "f1-score": 0.18100056211354693,
+        "gini": 0.5319005110396182,
+        "precision": 0.6954643628509719,
+        "recall": 0.10403877221324717,
+        "support": 17103.0
+      }]
+
+"pvalueReport": [
+      {
+        "bins": "[0.0% , 10.0%)",
+        "good": 3479,
+        "bad": 94,
+        "total": 3573,
+        "factor_per": 0.20891071741799686,
+        "bad_per": 0.026308424293310942,
+        "p": 0.03037156704361874,
+        "q": 0.24835808109651628,
+        "woe": -2.101364704034947,
+        "IV": 0.9909,
+        "varname": "scoreBins",
+        "model_pvalue": 0.05899743113970176,
+        "modelDataName": "train"
+      }]
+      
+异常：
+{'code':'503','Msg':'异常信息'}
+'''
+
+
+def f_modelPredictOutputType1(reqId, predictResPath, modelPath, predict, base):
+    '''
+    有监督预测的返回结果
+    :param reqId:
+    :param predictResPath:预测结果的存储路径
+    :param modelPath:模型路径
+    :param predict:预测集
+    :param base:传入的base
+    :return:
+    '''
+    reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+    # modeldataInfo
+    # 1.加载最终模型 计算出入模所需的变量数
+    modelen = f_getmodelen(modelPath)
+    # 2.总维度
+    trrow, trcol = predict.shape
+    # 3.重要变量个数
+    implen = None  # 前台补充一下吧
+    # 4.正负样本的比例
+    target_name = base['targetName']
+    x = predict[target_name].value_counts().values.tolist()
+    trpostivePct = x[1] / sum(x)
+    trnegdivpos = x[0] / x[1]
+
+    re = {'入模维度': modelen,
+          '正负样本比': trnegdivpos,
+          '总维度': trcol,
+          '样本量': trrow,
+          '正样本比例': trpostivePct,
+          '重要变量': implen,
+          '算法': base['arithmetic'],
+          '模型配置': base['modelConf']}
+    modeldataInfo = re
+
+    # modelreport
+    trpredpath = predictResPath
+    trpred = pd.read_csv(trpredpath)
+    trpred.rename(columns={'predictProb': 'P_value'}, inplace=True)
+
+    trp = precision_score(trpred[target_name], trpred.P_value > 0.5, average='binary')
+    trr = recall_score(trpred[target_name], trpred.P_value > 0.5, average='binary')
+    trf1score = f1_score(trpred[target_name], trpred.P_value > 0.5, average='binary')
+    trauc, trks = f_getAucKs(trpredpath)
+    trgini = trauc * 2 - 1
+    trsupport = trpred.shape[0]
+
+    re = {'AUC': trauc,
+          'KS': trks,
+          'f1-score': trf1score,
+          'gini': trgini,
+          'precision': trp,
+          'recall': trr,
+          'support': trsupport}
+
+    modelreport = re
+
+    # pvalueReport
+    prepvalueReport = f_pvalueReport(trpred)
+    prepvalueReport['modelDataName'] = 'predict'
+    prepvalueReport = prepvalueReport.to_dict(orient='records')
+
+    res = {'code': 200, 'reqId': reqId, 'predictResPath': predictResPath, 'reqTime': reqTime,
+           'modeldataInfo': modeldataInfo, 'modelreport': modelreport, 'pvalueReport': prepvalueReport}
     return simplejson.dumps(res, ensure_ascii=False)

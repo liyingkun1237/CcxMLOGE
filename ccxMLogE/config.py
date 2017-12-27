@@ -68,6 +68,7 @@ def f_mdAllconf(userPath):
 # 发现这么做的一个不好处 有问题
 LOGFILEPATH = '/ccxMLogE/Log'  # 指定路径
 # LOGFILEPATH = r'C:\Users\liyin\Desktop\CcxMLOGE'  # 指定路径
+# LOGFILEPATH = r'//10.0.5.136/model/lilong/log'  # 指定路径
 
 if __name__ == '__main__':
     # 测试一下

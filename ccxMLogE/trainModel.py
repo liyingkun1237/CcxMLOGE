@@ -118,9 +118,10 @@ def f_trainModelMain(train_path, test_path, index_name, target_name, userPath, m
     elif arithmetic == 'RF':
         return f_rf(modelmain, modeltype, modelCode)
     else:
-        return []
         # 写日志
         print('错误码003 模型没有跑起来')
+        return []
+
 
 
 # 递归调用的停止条件：

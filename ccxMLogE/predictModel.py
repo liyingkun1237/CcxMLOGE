@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 
-def predictmodel(processData, test, indexName):
+def predictmodel(processData, test, indexName, targetName=None):
     '''
     传入的是保存下来的processData对象,内部含有的属性是
     self.modelname = modelname
@@ -40,7 +40,13 @@ def predictmodel(processData, test, indexName):
     else:
         print('模型预测出错的bug')
 
-    res = pd.DataFrame({indexName: test[indexName], "predictProb": re})
+    if targetName:
+        # 有监督预测
+        res = pd.DataFrame({indexName: test[indexName], targetName: test[targetName], "P_value": re})
+        res = res[[indexName, targetName, "P_value"]]
+    else:
+        # 无监督预测
+        res = pd.DataFrame({indexName: test[indexName], "predictProb": re})
 
     return res
 

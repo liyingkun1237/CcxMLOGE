@@ -1,6 +1,6 @@
 
 SERVER=/ccxMLogE         #项目路径
-cd $SERVER/ccxMLogE/CcxMLOGE-0.1.0/ccxMLogE
+cd $SERVER/CcxMLOGE-0.1.0/ccxMLogE
 
 case "$1" in
 
