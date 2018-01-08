@@ -11,7 +11,7 @@ from flask import request
 import time
 import json
 from ccxMLogE.config import f_mdAllconf
-from ccxMLogE.inputTransform import f_getCateList, f_readData
+from ccxMLogE.inputTransform import f_getCateList, f_ReadData
 from ccxMLogE.logModel import ml_infologger, f_stdout2log
 from ccxMLogE.outputTransform import f_part2Output, f_type1Output, f_type2Output, f_part2Output4yibu, \
     f_modelPredictOutputType0, f_modelPredictOutputType1
@@ -47,7 +47,7 @@ def ccxModelApi():
         # 解析用户自定义的离散型变量
         cateList = f_getCateList(fields)
         # 读取数据
-        rawdata = f_readData(base)
+        rawdata = f_ReadData(base)
         # 数据概览
         datasetInfo = f_viewdata(rawdata, (base['programName'] + str(base['pId'])))
 
@@ -219,63 +219,63 @@ def f_getmodelType(base):
 
 @server.route('/ccxModelApi/predict', methods=['post'])
 def ccxModelApiPredict():
-    # try:
-    st = time.time()
-    # 1.解析数据
-    Input = json.loads(request.data.decode())
-    reqId = Input.get('reqId')
-    # modelreqId = Input.get('modelreqId') # 留着后期将其处理的更严谨
-    modelPath = Input.get('modelPath')
-    base = Input.get('base')
-    indexName = base['indexName']
-    targetName = base['targetName']
-    type = Input.get('type')
-    if type == 0:
-        print('前端请求接口数据', Input)
+    try:
+        st = time.time()
+        # 1.解析数据
+        Input = json.loads(request.data.decode())
+        reqId = Input.get('reqId')
+        # modelreqId = Input.get('modelreqId') # 留着后期将其处理的更严谨
+        modelPath = Input.get('modelPath')
+        base = Input.get('base')
+        indexName = base['indexName']
+        targetName = base['targetName']
+        type = Input.get('type')
+        if type == 0:
+            print('前端请求接口数据', Input)
 
-        # 获取到保存下来的processData 对象
+            # 获取到保存下来的processData 对象
 
-        processData = f_load(modelPath)
+            processData = f_load(modelPath)
 
-        # 读取待预测的数据集
-        test = f_readData(base)
+            # 读取待预测的数据集
+            test = f_ReadData(base)
 
-        # 进行预测
-        res = predictmodel(processData, test, indexName)
+            # 进行预测
+            res = predictmodel(processData, test, indexName)
 
-        # 结果保存
-        predictResPath = f_save_predictRes(res, modelPath)
+            # 结果保存
+            predictResPath = f_save_predictRes(res, modelPath)
 
-        # 正常情况下 返回结果
-        rest = f_modelPredictOutputType0(reqId, predictResPath)
-        print('返回无监督预测接口的结果', rest)
-        print('预测用时%0.2f s' % (time.time() - st))
-        return rest
-    elif type == 1:
-        print('前端请求接口数据', Input)
+            # 正常情况下 返回结果
+            rest = f_modelPredictOutputType0(reqId, predictResPath)
+            print('返回无监督预测接口的结果', rest)
+            print('预测用时%0.2f s' % (time.time() - st))
+            return rest
+        elif type == 1:
+            print('前端请求接口数据', Input)
 
-        # 获取到保存下来的processData 对象
+            # 获取到保存下来的processData 对象
 
-        processData = f_load(modelPath)
+            processData = f_load(modelPath)
 
-        # 读取待预测的数据集
-        test = f_readData(base)
+            # 读取待预测的数据集
+            test = f_ReadData(base)
 
-        # 进行预测
-        res = predictmodel(processData, test, indexName, targetName=targetName)
+            # 进行预测
+            res = predictmodel(processData, test, indexName, targetName=targetName)
 
-        # 结果保存
-        predictResPath = f_save_predictRes(res, modelPath)
-        print('sdcdcdf--bugbugbug', predictResPath)
+            # 结果保存
+            predictResPath = f_save_predictRes(res, modelPath)
+            print('sdcdcdf--bugbugbug', predictResPath)
 
-        # 正常情况下 返回结果
-        rest = f_modelPredictOutputType1(reqId, predictResPath, processData.bstmodelpath, test, base)
-        print('返回有监督预测接口的结果', rest)
-        print('预测用时%0.2f s' % (time.time() - st))
-        return rest
+            # 正常情况下 返回结果
+            rest = f_modelPredictOutputType1(reqId, predictResPath, processData.bstmodelpath, test, base)
+            print('返回有监督预测接口的结果', rest)
+            print('预测用时%0.2f s' % (time.time() - st))
+            return rest
 
-        # except Exception as e:
-        #     return json.dumps({'code': 503, 'Msg': str(e)}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({'code': 503, 'Msg': str(e)}, ensure_ascii=False)
 
 
 def f_load(modelPath):

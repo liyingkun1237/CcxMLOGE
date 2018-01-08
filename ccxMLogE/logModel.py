@@ -103,7 +103,7 @@ def f_stdout2log(logPath, func, *args, **kwargs):
     with open(logPath, "a+", buffering=1, encoding='utf-8') as f:
         sys.stdout = f  # 输出指向txt文件
         re = func(*args, **kwargs)
-        sys.stdout = temp  # 输出重定向回consle
+    sys.stdout = temp  # 输出重定向回consle bug 0105发现 不能在with语句里面，要不会出ValueError: I/O operation on closed file.
         # print(f.readlines())
     return re
 

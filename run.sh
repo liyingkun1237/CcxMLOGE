@@ -1,11 +1,11 @@
 
 SERVER=/ccxMLogE         #项目路径
-cd $SERVER/CcxMLOGE-0.1.0/ccxMLogE
+cd $SERVER/CcxMLOGE-0.1.1/ccxMLogE
 
 case "$1" in
 
  start)
-   nohup python ccxModelApi.py 1>$SERVER/info.log 2>$SERVER/error.log &
+   nohup python ccxModelApi.py 1>$SERVER/runinfo.log 2>&1 &
    echo "启动成功 $!"
    echo $! > $SERVER/server.pid
    ;;

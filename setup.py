@@ -4,7 +4,7 @@ setup(
     name='CcxMLOGE',
     version='0.1.1',
     packages=['ccxMLogE'],
-    url='2017-12-11',
+    url='2018-01-08',
     license='ccx',
     author='liyingkun',
     author_email='liyingkun@ccx.cn',

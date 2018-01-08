@@ -98,7 +98,6 @@ def f_detailVarhtml(df, userPath):
     filename = 'detailVarhtml_' + reqTime + '.html'
     path = os.path.join(respath, filename)
     profile.to_file(outputfile=path)
-    print('scdfsscfsf', filename)
     return path
 
 
@@ -563,7 +562,17 @@ def f_pvalueReport(tepred):
     bestbins = pd.Series(mhbins).unique().tolist()
     print('===调整后的分箱=====', bestbins)
     # 1201 开发一个方法 加上百分号,1204发现 加上百分号之后 顺序会发生改变，尝试另外的方法
-    tepred['scoreBins'] = pd.cut(x, bestbins, right=False)
+    # 2018-01-08 发现 当数据量少时 分箱会出错，加入这样的逻辑 如果箱中只有一个元素 则等频分箱
+    if len(bestbins) > 1:
+        tepred['scoreBins'] = pd.cut(x, bestbins, right=False)
+    elif len(bestbins) == 1 and x.min() == x.max():
+        tepred['scoreBins'] = pd.cut(x, [x.min(), x.max() + 1], right=False)
+    elif len(bestbins) == 1 and x.min() != x.max():
+        try:
+            tepred['scoreBins'] = pd.qcut(x, 5, duplicates='drop')
+        except IndexError:  # 分箱不了
+            tepred['scoreBins'] = pd.cut(x, [x.min(), x.max() + 1], right=False)
+
     iv = IV(tepred['scoreBins'], y)
     iv['bins'] = iv['bins'].apply(f_addbfh)
     model_pvalue = tepred.groupby('scoreBins')['P_value'].mean().tolist() + [tepred['P_value'].mean()]
