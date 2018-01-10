@@ -10,7 +10,8 @@ import requests
 from flask import request
 import time
 import json
-from ccxMLogE.config import f_mdAllconf
+from ccxMLogE.config import f_mdAllconf, variableurl, modelurl
+from ccxMLogE.entrance import f_enter
 from ccxMLogE.inputTransform import f_getCateList, f_ReadData
 from ccxMLogE.logModel import ml_infologger, f_stdout2log
 from ccxMLogE.outputTransform import f_part2Output, f_type1Output, f_type2Output, f_part2Output4yibu, \
@@ -51,6 +52,15 @@ def ccxModelApi():
         # 数据概览
         datasetInfo = f_viewdata(rawdata, (base['programName'] + str(base['pId'])))
 
+        # 2018-01-10 设计的 为了服务于计费系统而开发的 开关函数的入口
+        random = str(rawdata.shape[0]) + 'ccx' + str(rawdata.shape[1])
+        is_run = f_enter(reqId, random)
+        if is_run:
+            # 继续运行
+            pass
+        else:
+            # 计费系统不允许执行了
+            return json.dumps({"code": 404, "msg": '非法操作 不允许继续运行'}, ensure_ascii=False)
         # 1208 遇到文件多? 的bug 先自己处理一下 后续交由李龙处理
         col0 = rawdata.columns[0]
         rawdata = rawdata.rename(columns={col0: col0.split('?')[-1]})
@@ -109,9 +119,7 @@ def f_threadVarDesc(rawdata, base, cateList, userPath, reqId, datasetInfo, mllog
 
         # 回调变量分析输出接口
         header_dict = {"Content-Type": "application/json"}
-        # url = 'http://10.0.5.136:9999/variable/api'  # 开发环境请求接口
-        # url = 'http://192.168.100.175:8080/ccx-models/variable/api'  # 线上测试环境请求接口
-        url = 'http://127.0.0.1:8081/ccx-models/variable/api'  # 线上生产环境请求接口
+        url = variableurl
         res_ = res.encode('utf-8')
         r = requests.post(url, data=res_, headers=header_dict)
         # print('用时' * 20, (time.time() - st()))
@@ -119,9 +127,7 @@ def f_threadVarDesc(rawdata, base, cateList, userPath, reqId, datasetInfo, mllog
         return res
     except Exception as e:
         header_dict = {"Content-Type": "application/json"}
-        # url = 'http://10.0.5.136:9999/variable/api'  # 开发环境请求接口
-        # url = 'http://192.168.100.175:8080/ccx-models/variable/api'  # 线上测试环境请求接口
-        url = 'http://127.0.0.1:8081/ccx-models/variable/api'  # 线上生产环境请求接口
+        url = variableurl
         res = json.dumps({"code": 501, "reqId": reqId, "msg": str(e)}, ensure_ascii=False)
         res_ = res.encode('utf-8')
         r = requests.post(url, data=res_, headers=header_dict)
@@ -170,9 +176,7 @@ def f_threadModelTrain(rawdata, base, cateList, reqId, datasetInfo, userPath, ml
 
         # 回调输出接口
         header_dict = {"Content-Type": "application/json"}
-        # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
-        # url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上测试环境请求接口
-        url = 'http://127.0.0.1:8081/ccx-models/output/api'  # 线上生产环境请求接口
+        url = modelurl
         res_ = res.encode('utf-8')
         r = requests.post(url, data=res_, headers=header_dict)
         # print('用时' * 20, (time.time() - st()))
@@ -180,9 +184,7 @@ def f_threadModelTrain(rawdata, base, cateList, reqId, datasetInfo, userPath, ml
         return res
     except Exception as e:
         header_dict = {"Content-Type": "application/json"}
-        # url = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
-        # url = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上测试环境请求接口
-        url = 'http://127.0.0.1:8081/ccx-models/output/api'  # 线上生产环境请求接口
+        url = modelurl
         res = json.dumps({"code": 502, "reqId": reqId, "msg": str(e)}, ensure_ascii=False)
         res_ = res.encode('utf-8')
         r = requests.post(url, data=res_, headers=header_dict)
