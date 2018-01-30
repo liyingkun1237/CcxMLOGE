@@ -38,26 +38,26 @@ def f_enter(reqId, random):
     passWord = PASSWORD
     # 加密方式 'reqId'+reqId+'userName'+userName+'passWord'+passWord+random 进行md5加密 编码类型为utf-8
     string = 'reqId' + str(reqId) + 'userName' + str(userName) + 'passWord' + str(passWord) + str(random)
+    # print('加密前的明文字符串', string)
     sign = mob2MD5(string)
-    reqTime = datetime.today().strftime('%Y-%m-%d %H%M%S')
+    reqTime = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
     reqs = json.dumps({"reqId": reqId, 'sign': sign, 'reqTime': reqTime}, ensure_ascii=False)
+    # print('请求计费系统的json串', reqs)
     reqs_ = reqs.encode('utf-8')
     r = requests.post(url, data=reqs_, headers=header_dict)
     # print('用时' * 20, (time.time() - st()))
+    print('收到的回复', r.text)
     resp = json.loads(r.text)
+    print('收到的回复', resp)
     # 返回json示例 {"code":"0000"} /{'code':"0101"}
     if resp['code'] == "0000":
         return True
     elif resp['code'] == "0101":
+        # 加密方式出现不一致
+        return False
+    elif resp['code'] == '0102':
+        # 计费系统的数据库中未查到数据
+        print('是不是走了这######')
         return False
     else:
         raise ValueError("return code out of dict")
-
-
-if __name__ == '__main__':
-    reqId = 'Xgboost-128-721742'
-    userName = 'xiaoxinyong'
-    passWord = '12345678'
-    random = '1000ccx30'
-    string = 'reqId' + str(reqId) + 'userName' + str(userName) + 'passWord' + str(passWord) + str(random)
-    mob2MD5(string)

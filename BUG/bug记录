@@ -110,3 +110,27 @@ bug解决思路：重新一次获取最优参数的函数 使其更为健全，�
 2018-01-08 王超跑模型时出现了两个bug
 1.读取数据时的文件编码问题 inputTransform模块新增了函数 f_ReadData解决
 2.概率分箱时的问题 outputTransform模块565行至576新增了判断语句解决
+
+
+2018-01-13 发现了100.175引入matplotlib.pyplot 时 发现的bug
+bug：
+ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+#查阅后的解决命令
+yum install mesa-libGL.x86_64
+#发现bug发生了改变
+ImportError: /lib64/libGL.so.1: undefined symbol: drmFreeDevice
+#最后使用了如下命令得以解决
+yum update
+#有效
+
+
+2018-01-14 再测试遗传算法制造特征工程时 出现bug
+#bug原因未找到，1,后台进程还在，也接收到前端的请求了，但是没有往下运行
+#2.另外一个bug就是 ValueError: I/O operation on closed file.
+#第二个bug的原因是，在with语句中，把控制台的重定向给关闭了，但是这个bug之前已经修改了，按理不应该出现了才对
+
+
+2018-01-24 至小信用部署时发现的最大的bug
+一跑lightgbm，后台的进程就会死去。未找到原因
+一点点bug线索：
+type=ANOM_ABEND msg=audit(1516775306.071:3106): auid=3002 uid=0 gid=0 ses=236 pid=30046 comm="python" reason="memory violation" sig=11

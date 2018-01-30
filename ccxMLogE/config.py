@@ -70,9 +70,8 @@ def f_mdAllconf(userPath):
 # LOGFILEPATH = r'C:\Users\liyin\Desktop\CcxMLOGE'  # 指定路径
 LOGFILEPATH = r'//10.0.5.136/model/lilong/log'  # 指定路径
 
-
-#URL回调接口的地址
-#变量分析部分的url
+# URL回调接口的地址
+# 变量分析部分的url
 variableurl = 'http://10.0.5.136:9999/variable/api'  # 开发环境请求接口
 # variableurl = 'http://192.168.100.175:8080/ccx-models/variable/api'  # 线上测试环境请求接口
 # variableurl = 'http://127.0.0.1:8081/ccx-models/variable/api'  # 线上生产环境请求接口
@@ -81,6 +80,7 @@ modelurl = 'http://10.0.5.136:9999/output/api'  # 开发环境请求接口
 # modelurl = 'http://192.168.100.175:8080/ccx-models/output/api'  # 线上测试环境请求接口
 # modelurl = 'http://127.0.0.1:8081/ccx-models/output/api'  # 线上生产环境请求接口
 
+IP = '192.168.60.17'
 
 if __name__ == '__main__':
     # 测试一下
