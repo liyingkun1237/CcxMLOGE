@@ -134,3 +134,8 @@ yum update
 一跑lightgbm，后台的进程就会死去。未找到原因
 一点点bug线索：
 type=ANOM_ABEND msg=audit(1516775306.071:3106): auid=3002 uid=0 gid=0 ses=236 pid=30046 comm="python" reason="memory violation" sig=11
+
+
+
+Installing collected packages: pyasn1, bcrypt, pynacl, paramiko, fabric
+Successfully installed bcrypt-3.1.4 fabric-1.14.0 paramiko-2.4.0 pyasn1-0.4.2 pynacl-1.2.1

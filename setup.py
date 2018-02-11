@@ -3,7 +3,7 @@ from only_save_pyc import change_file as change_file_ccx  # 引入修改pyc文�
 
 setup(
     name='CcxMLOGE',
-    version='0.1.1',
+    version='0.2.1',
     packages=['ccxMLogE'],
     url='2018-01-08',
     license='ccx',

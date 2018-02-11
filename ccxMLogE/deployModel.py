@@ -26,7 +26,7 @@ def f_varApiDesc(df):
     '''
     resDict = {}
     resDict['varName'] = df.columns
-    resDict['keyIsNull'] = '否'
+    resDict['keyIsNull'] = 'No'
     resDict['valueIsNull'] = df.isnull().sum().values > 0
     resDict['VarType'] = df.dtypes.apply(f_transType)
 
@@ -50,14 +50,32 @@ def f_updateApiDesc(processData, Apidf):
         # 随机森林这里 需要去修改一下底层源码了 ccxmodel 里面
         re = f_getRawcolnames(bst[1], Apidf.varName)
 
+    re = re.varname.values
+
     def f_(x, re):
         if x in re:
-            return '是'
+            return 'No'
         else:
-            return x
+            return 'Yes'
+
+    def f__(x):
+        if x:
+            return 'Yes'
+        else:
+            return 'No'
 
     Apidf['keyIsNull'] = Apidf.varName.apply(lambda x: f_(x, re))
-    return Apidf
+    Apidf['valueIsNull'] = Apidf.valueIsNull.apply(f__)
+    Apidf['fieldLevel'] = 'Level 2'
+
+    dataTop = pd.DataFrame({'fieldLevel': ['Level 1', 'Level 1', 'Level 1'],
+     'varName': ['reqIndex', 'reqTime', 'dataJson'],
+     'VarType': ['String', 'String', 'List'],
+     'keyIsNull': ['No', 'No', 'No'], 'valueIsNull': ['No', 'No', 'No']})
+
+    Apidf = pd.concat([dataTop, Apidf])
+
+    return Apidf[['varName', 'fieldLevel', 'VarType', 'keyIsNull', 'valueIsNull']]
 
 
 def f_transType(x):
@@ -82,22 +100,22 @@ def f_gendeployCode(codefile, ApiName, modelPath, indexName, port):
     :return: 返回一个脚本文件路径
     '''
     strDeploy = """
+import numpy as np
 import pickle
 import pandas as pd
-import flask
-from flask import request
 import time
-import json
 from ccxMLogE.predictModel import predictmodel  
+from sanic import Sanic
+from sanic import response
 
-server = flask.Flask(__name__)
+app = Sanic()
 
 
-@server.route('/ApiName/{ApiName}', methods=['post'])
-def ccxModelApi():
+@app.post('/ApiName/{ApiName}')
+async def ccxModelApi(request):
     def f_trans_data(data):
         try:
-            return pd.DataFrame(data)
+            return pd.DataFrame(data).fillna(np.nan)
         except Exception as e:
             raise ValueError('Data format is not satisfied')
 
@@ -105,7 +123,7 @@ def ccxModelApi():
         st = time.time()
         # 1.解析数据
 
-        Input = json.loads(request.data.decode())
+        Input = request.json
         reqIndex = Input.get('reqIndex')
         reqTime = Input.get('reqTime')
         dataJson = Input.get('dataJson')
@@ -118,16 +136,16 @@ def ccxModelApi():
         re = predictmodel(processData, Data, '{indexName}')['predictProb'].values.tolist()  # indexName
         # 5.返回结果
         res = {rightres} 
-        return json.dumps(res)
+        return response.json(res)
     except Exception as e:
-        return json.dumps({errorres}) 
+        return response.json({errorres}) 
 
 if __name__ == '__main__':
-    server.run(debug=True, port={port}, host='0.0.0.0')""". \
+    app.run(debug=True, port={port}, host='0.0.0.0')""". \
         format(ApiName=ApiName,
                modelPath=modelPath, indexName=indexName, port=port,
                rightres="""{'code': 200, 'reqIndex': reqIndex, 'reqTime': reqTime, 'predictProb': re}""",
-               errorres="""{'code': 500, 'reqIndex': reqIndex, 'reqTime': reqTime, 'resMsg': str(e)}""", )
+               errorres="""{'code': 500,  'resMsg': str(e)}""", )
 
     with open(codefile, 'wt', encoding='utf-8') as f:
         print(strDeploy, file=f)
@@ -144,7 +162,7 @@ def f_genPort():
     随机生成一个5位数，作为端口号
     :return: 5位整数
     '''
-    return random.randint(10000, 99999)
+    return random.randint(10000, 65535)
 
 
 import subprocess
@@ -194,8 +212,8 @@ def f_genshellCode(serverPath, shellcodePath):
     '''
 
     strshell = """
-SERVER = {}  # 项目路径
-cd $SERVER/
+SERVER={}  # 项目路径
+cd $SERVER
 
 case "$1" in
 
@@ -208,7 +226,7 @@ start)
 stop)
     kill `cat $SERVER/server.pid`
     echo "停止模型服务成功"
-    rm - rf $SERVER/server.pid
+    rm -rf $SERVER/server.pid
     ;;
 
 esac
@@ -224,11 +242,15 @@ exit 0""".format(serverPath)
 def f_runshell(shellPath):
     '''
     使用python 执行shell脚本的函数
-    :param shellPath: 即serverpath，sh脚本的文件夹路径
+    :param shellPath: 即serverpath，sh脚本的文件夹路径;0205修改为fabric的路径
     :return:
     '''
     try:
-        subprocess.check_output("cd {} \n chmod 755 runmodel.sh \n ./runmodel.sh strart".format(shellPath), shell=True)
+        import os
+        x = subprocess.check_output("fab -f {}/fabricdeploy.py deploy".format(shellPath),
+            timeout=10, start_new_session=True, shell=True)
+
+        print(x)
         return True
     except Exception as e:
         raise RuntimeError("run shell Error {}".format(str(e)))
@@ -237,8 +259,8 @@ def f_runshell(shellPath):
 
 def f_genTestJson(df, n):
     dataJson = df.head(n).to_dict(orient='records')
-    res = {'reqIndex': '请求索引/流水号',
-           'reqTime': '请求时间戳',
+    res = {'reqIndex': 'index',#请求索引/流水号
+           'reqTime': 'time',#请求时间戳
            'dataJson': dataJson
            }
 
@@ -269,12 +291,64 @@ def f_ApiDocWriter(path, url, APIdf, testOneJson, r1, testmultiJson, r2):
     durl = pd.DataFrame({"模型接口URL": [url]})
     dTest = pd.DataFrame({"数据说明": ['单条测试', '批量测试'],
                           "测试数据": [testOneJson, testmultiJson],
-                          "测试结果": [r1.text, r2.text]})
+                          "测试结果": [r1.text, r2.text]
+                          })
     durl.to_excel(writer, 'url', index=False)
     APIdf.to_excel(writer, 'param', index=False)
     dTest.to_excel(writer, 'test', index=False)
     writer.save()
     return path
+
+def f_getip():
+    import socket
+    hostname = socket.gethostname()
+    # print(hostname)
+    ip = socket.gethostbyname(hostname)
+    return ip
+
+
+def f_genfabricCode(serverPath, shellcodePath):
+    '''
+    # 生成部署 模型服务的py脚本 后期要实现了远程部署功能
+    :param serverPath: py脚本和API.py脚本所在的文件夹路径
+    :param shellcodePath: 生成的fabricdeploy.py 脚本的绝对路径
+    :return: 路径
+    '''
+
+    strshell = """
+from fabric.api import *
+
+env.hosts = 'localhost'
+
+def deploy():
+    with lcd('{}'):
+        local('chmod 755 runmodel.sh')
+        local('bash runmodel.sh start && sleep 1')
+        print('本地的模型服务启动成功')""".format(serverPath)
+
+    with open(shellcodePath, 'wt', encoding='utf-8') as f:
+        print(strshell, file=f)
+    print('部署模型服务的fabric脚本已生成')
+    return shellcodePath
+
+
+
+# def f_subprocess():
+#     print('开始启动另一个服务')
+#     # os.system('python {}/flask_test.py'.format(versionpath))
+#     # os.system('python /root/jupyterhub/CcxMLOGE/Testdeploy/modelDB/rtryyv01/flask_test.py')
+#     os.system('python /root/jupyterhub/CcxMLOGE/Testdeploy/modelDB/rtryyv01/deployModelApi.py')
+#     print('启动另一个服务的代码已执行')
+#     # os.system('python {}/deployModelApi.py'.format(versionpath))
+#
+
+# def f_subprocess(versionpath):
+#     flag = f_runshell(versionpath)
+#     if flag:
+#         print('伪启动成功')
+#     else:
+#         print('启动非常失败,都是坤总的锅，就赖他就好了')
+
 
 
 if __name__ == '__main__':
@@ -291,14 +365,14 @@ if __name__ == '__main__':
     shellcodePath = r'C:\Users\liyin\Desktop\CcxMLOGE\code_DF\runmodel.sh'
     f_genshellCode(serverPath, shellcodePath)
 
-'''
+    '''
         Input 的数据结构
         请求数据格式：
         {'reqIndex': '请求索引/流水号',
         'reqTime': '请求时间戳',
         'data': '数据'#[{}]
         }
-'''
+    '''
 
-f_genTestJson(df)
-'{"reqIndex": "请求索引/流水号", "reqTime": "请求时间戳", "dataJson": [{"contract_id": 29586, "apply_dts": 297.0, "apply_amount": 2000.0, "apply_month": 3, "login_origin": 1, "mobile_company": 2, "net_age": NaN, "reapply_cnt": 2, "is_night_apply": 0, "is_workday_apply": 1, "is_worktime_apply": 1, "tg_location1": "sdzj", "cid_prov_lvl": NaN, "address_length": 27, "bank_prov_lvl": 2.0, "mobile_segment": 182, "age": 35, "gender": 1, "regaud_diffdays": 2307477.0, "login_diffdays": 73, "mobile_prov_lvl": 2.0, "job_type": 2, "mobile_cardmobile": 1, "addrcity_mobilecity": 1, "addrcity_compcity": 1, "mobilecity_compcity": 1, "cidcity_bankcity": 0, "rela1_lvl": 3.0, "rela2_lvl": 1.0, "rela3_lvl": 2.0, "addrcity_bankcity": 1, "target": 0, "tg_location": 6.0, "mobile_segment_2num": 18}]}'
+    f_genTestJson(df)
+    '{"reqIndex": "请求索引/流水号", "reqTime": "请求时间戳", "dataJson": [{"contract_id": 29586, "apply_dts": 297.0, "apply_amount": 2000.0, "apply_month": 3, "login_origin": 1, "mobile_company": 2, "net_age": NaN, "reapply_cnt": 2, "is_night_apply": 0, "is_workday_apply": 1, "is_worktime_apply": 1, "tg_location1": "sdzj", "cid_prov_lvl": NaN, "address_length": 27, "bank_prov_lvl": 2.0, "mobile_segment": 182, "age": 35, "gender": 1, "regaud_diffdays": 2307477.0, "login_diffdays": 73, "mobile_prov_lvl": 2.0, "job_type": 2, "mobile_cardmobile": 1, "addrcity_mobilecity": 1, "addrcity_compcity": 1, "mobilecity_compcity": 1, "cidcity_bankcity": 0, "rela1_lvl": 3.0, "rela2_lvl": 1.0, "rela3_lvl": 2.0, "addrcity_bankcity": 1, "target": 0, "tg_location": 6.0, "mobile_segment_2num": 18}]}'
